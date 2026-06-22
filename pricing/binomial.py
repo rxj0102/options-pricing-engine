@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import List, Tuple, Union
 
 import numpy as np
@@ -10,6 +11,8 @@ from pricing.base import ExerciseStyle, OptionPricer, OptionType
 
 DEFAULT_N_STEPS: int = 200
 DEFAULT_CONVERGENCE_STEPS: Tuple[int, ...] = (10, 25, 50, 100, 200, 500)
+#: The stock lattice is an ``O(n^2)`` dense array; warn beyond this size.
+MAX_RECOMMENDED_STEPS: int = 2000
 
 
 class CRRBinomial(OptionPricer):
@@ -39,6 +42,16 @@ class CRRBinomial(OptionPricer):
     name = "CRR Binomial"
 
     def __init__(self, n_steps: int = DEFAULT_N_STEPS) -> None:
+        if n_steps < 1:
+            raise ValueError(f"n_steps must be >= 1, got {n_steps}.")
+        if n_steps > MAX_RECOMMENDED_STEPS:
+            warnings.warn(
+                f"n_steps={n_steps} exceeds {MAX_RECOMMENDED_STEPS}; the "
+                f"O(n^2) lattice will use ~{(n_steps + 1) ** 2 * 8 / 1e6:.0f} "
+                "MB per tree and may be slow.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
         self.n_steps = int(n_steps)
         self.tree: np.ndarray | None = None
 

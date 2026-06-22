@@ -56,3 +56,55 @@ def test_dividend_reduces_call_value(model):
     no_div = model.price(100, 100, 1.0, 0.05, 0.2, "call", q=0.0)
     with_div = model.price(100, 100, 1.0, 0.05, 0.2, "call", q=0.05)
     assert with_div < no_div
+
+
+# ---------------------------------------------------------------------------
+# Edge cases and monotonicity (audit additions)
+# ---------------------------------------------------------------------------
+def test_sigma_zero_returns_discounted_intrinsic(model):
+    """As sigma->0 the call equals max(S*e^{-qT} - K*e^{-rT}, 0)."""
+    val = model.price(100, 90, 1.0, 0.05, 0.0, "call", q=0.02)
+    import numpy as np
+
+    expected = max(100 * np.exp(-0.02) - 90 * np.exp(-0.05), 0.0)
+    assert val == pytest.approx(expected, abs=1e-9)
+
+
+def test_sigma_zero_atm_zero_rate_is_finite(model):
+    """The degenerate 0/0 case (sigma=0, r=q=0, ATM) must not be NaN."""
+    val = model.price(100, 100, 1.0, 0.0, 0.0, "call")
+    assert math.isfinite(val)
+    assert val == pytest.approx(0.0, abs=1e-12)
+
+
+def test_time_zero_returns_immediate_intrinsic(model):
+    assert model.price(115, 100, 0.0, 0.05, 0.2, "call") == pytest.approx(15.0)
+
+
+def test_rate_monotonicity(model):
+    assert model.price(100, 100, 1.0, 0.07, 0.2, "call") > model.price(
+        100, 100, 1.0, 0.03, 0.2, "call"
+    )
+    assert model.price(100, 100, 1.0, 0.07, 0.2, "put") < model.price(
+        100, 100, 1.0, 0.03, 0.2, "put"
+    )
+
+
+def test_dividend_monotonicity(model):
+    assert model.price(100, 100, 1.0, 0.05, 0.2, "call", q=0.05) < model.price(
+        100, 100, 1.0, 0.05, 0.2, "call", q=0.0
+    )
+    assert model.price(100, 100, 1.0, 0.05, 0.2, "put", q=0.05) > model.price(
+        100, 100, 1.0, 0.05, 0.2, "put", q=0.0
+    )
+
+
+def test_implied_vol_below_intrinsic_raises(model):
+    """A price below the no-arbitrage bound cannot be inverted."""
+    with pytest.raises(ValueError):
+        model.implied_vol(0.5, 100, 80, 1.0, 0.05, 0.0, "call")
+
+
+def test_implied_vol_above_spot_raises(model):
+    with pytest.raises(ValueError):
+        model.implied_vol(101.0, 100, 80, 1.0, 0.05, 0.0, "call")

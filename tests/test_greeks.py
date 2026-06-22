@@ -1,5 +1,8 @@
 """Tests for analytical and numerical Greeks."""
 
+import itertools
+import math
+
 import pytest
 
 from greeks.analytical import BSMGreeks
@@ -65,3 +68,45 @@ def test_pnl_attribution_total_equals_actual():
     assert res["explained_pnl"] + res["residual_pnl"] == pytest.approx(
         res["actual_pnl"]
     )
+
+
+# ---------------------------------------------------------------------------
+# Greek sign profiles over a grid and numerical agreement (audit additions)
+# ---------------------------------------------------------------------------
+_GRID = list(itertools.product([80, 100, 120], [80, 100, 120], [0.25, 1.0, 2.0]))
+
+
+@pytest.mark.parametrize("S,K,T", _GRID)
+def test_delta_sign_profile_over_grid(greeks, S, K, T):
+    call = greeks.compute(S, K, T, 0.05, 0.2, "call")
+    put = greeks.compute(S, K, T, 0.05, 0.2, "put")
+    assert 0.0 < call.delta < 1.0
+    assert -1.0 < put.delta < 0.0
+    assert call.gamma > 0.0
+    assert call.vega > 0.0
+
+
+def test_theta_negative_for_long_call_and_put(greeks):
+    assert greeks.compute(100, 100, 1.0, 0.05, 0.2, "call").theta < 0
+    assert greeks.compute(100, 100, 1.0, 0.05, 0.2, "put").theta < 0
+
+
+def test_rho_signs(greeks):
+    assert greeks.compute(100, 100, 1.0, 0.05, 0.2, "call").rho > 0
+    assert greeks.compute(100, 100, 1.0, 0.05, 0.2, "put").rho < 0
+
+
+def test_vanna_sign_profile(greeks):
+    """Vanna = -e^{-qT} n(d1) d2 / sigma is NEGATIVE for an ITM call (d2>0)
+    and POSITIVE for an OTM call (d2<0) -- the standard textbook profile."""
+    itm = greeks.compute(120, 100, 1.0, 0.05, 0.2, "call")
+    otm = greeks.compute(80, 100, 1.0, 0.05, 0.2, "call")
+    assert itm.vanna < 0
+    assert otm.vanna > 0
+
+
+def test_gamma_spikes_near_expiry_without_crashing(greeks):
+    near = greeks.compute(100, 100, 1e-4, 0.05, 0.2, "call").gamma
+    far = greeks.compute(100, 100, 1.0, 0.05, 0.2, "call").gamma
+    assert math.isfinite(near)
+    assert near > far  # gamma ~ 1/sqrt(T) grows as T -> 0

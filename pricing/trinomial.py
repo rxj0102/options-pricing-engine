@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Union
 
 import numpy as np
@@ -9,6 +10,8 @@ import numpy as np
 from pricing.base import ExerciseStyle, OptionPricer, OptionType
 
 DEFAULT_N_STEPS: int = 150
+#: Backward induction is ``O(n^2)`` in time; warn beyond this many steps.
+MAX_RECOMMENDED_STEPS: int = 2000
 #: Boyle's stretch parameter; lambda = sqrt(3/2) places three branches so the
 #: lattice matches the first two moments of the lognormal increment.
 BOYLE_LAMBDA: float = np.sqrt(1.5)
@@ -48,6 +51,15 @@ class BoyleTrinomial(OptionPricer):
     name = "Boyle Trinomial"
 
     def __init__(self, n_steps: int = DEFAULT_N_STEPS) -> None:
+        if n_steps < 1:
+            raise ValueError(f"n_steps must be >= 1, got {n_steps}.")
+        if n_steps > MAX_RECOMMENDED_STEPS:
+            warnings.warn(
+                f"n_steps={n_steps} exceeds {MAX_RECOMMENDED_STEPS}; the "
+                "O(n^2) backward induction may be slow.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
         self.n_steps = int(n_steps)
         self.tree: np.ndarray | None = None
 
@@ -63,6 +75,52 @@ class BoyleTrinomial(OptionPricer):
         pm = 1.0 - 1.0 / lam**2
         pd = 1.0 - pu - pm
         return u, d, pu, pm, pd
+
+    def validate_probabilities(
+        self, r: float, q: float, sigma: float, T: float
+    ) -> dict:
+        r"""Diagnostic check of the single-step branch probabilities.
+
+        The Kamrad-Ritchken / Boyle scheme matches the first two moments of
+        the **log-return**, so the probabilities sum to one exactly while the
+        discrete *arithmetic* martingale identity
+        :math:`p_u u + p_m + p_d d = e^{(r-q)\Delta t}` holds only to
+        :math:`O(\Delta t^{3/2})` and vanishes as ``n_steps`` grows. This
+        method reports both so callers can verify the construction.
+
+        Parameters
+        ----------
+        r, q, sigma, T : float
+            Rate, dividend yield, volatility and total time to expiry.
+
+        Returns
+        -------
+        dict
+            ``pu, pm, pd, prob_sum, martingale_lhs, martingale_rhs,
+            martingale_abs_err, probabilities_valid``.
+
+        Examples
+        --------
+        >>> chk = BoyleTrinomial(150).validate_probabilities(0.05, 0.0, 0.2, 1.0)
+        >>> abs(chk["prob_sum"] - 1.0) < 1e-12 and chk["probabilities_valid"]
+        True
+        """
+        dt = T / self.n_steps
+        u, d, pu, pm, pd = self._probabilities(r, q, sigma, dt)
+        lhs = pu * u + pm * 1.0 + pd * d
+        rhs = float(np.exp((r - q) * dt))
+        return {
+            "pu": float(pu),
+            "pm": float(pm),
+            "pd": float(pd),
+            "prob_sum": float(pu + pm + pd),
+            "martingale_lhs": float(lhs),
+            "martingale_rhs": rhs,
+            "martingale_abs_err": float(abs(lhs - rhs)),
+            "probabilities_valid": bool(
+                0.0 <= pu <= 1.0 and 0.0 <= pm <= 1.0 and 0.0 <= pd <= 1.0
+            ),
+        }
 
     def price(
         self,

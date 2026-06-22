@@ -10,6 +10,10 @@ from pricing.base import OptionPricer, OptionType
 from pricing.black_scholes import BlackScholesMerton
 from utils.distributions import norm_cdf
 
+# Degenerate-input thresholds (mirror Black-Scholes) used to skip d1/d2.
+_MIN_TIME: float = 1e-10
+_MIN_VOL: float = 1e-10
+
 
 class Black76(OptionPricer):
     r"""Black-76 model for European options on a forward/futures price.
@@ -98,10 +102,16 @@ class Black76(OptionPricer):
         """
         option_type = OptionType.coerce(option_type)
         F = S
-        if T <= 0:
+        if T <= _MIN_TIME:
             if option_type is OptionType.CALL:
                 return max(float(F) - float(K), 0.0)
             return max(float(K) - float(F), 0.0)
+        if sigma <= _MIN_VOL:
+            # Deterministic payoff: discount the forward intrinsic value.
+            disc = np.exp(-r * T)
+            if option_type is OptionType.CALL:
+                return max(disc * (float(F) - float(K)), 0.0)
+            return max(disc * (float(K) - float(F)), 0.0)
 
         d1, d2 = self.d1_d2(F, K, T, sigma)
         disc = np.exp(-r * T)

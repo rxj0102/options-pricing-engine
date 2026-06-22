@@ -15,6 +15,12 @@ _IV_LOWER_BOUND: float = 1e-6
 _IV_UPPER_BOUND: float = 5.0
 _IV_TOLERANCE: float = 1e-8
 
+# Degenerate-input thresholds used to short-circuit d1/d2 evaluation.
+_MIN_TIME: float = 1e-10
+_MIN_VOL: float = 1e-10
+# Tolerance (in price units) for the no-arbitrage bounds in implied_vol.
+_ARB_TOLERANCE: float = 1e-8
+
 
 class BlackScholesMerton(OptionPricer):
     r"""Black-Scholes-Merton model for European options with continuous yield.
@@ -98,11 +104,20 @@ class BlackScholesMerton(OptionPricer):
         5.5735
         """
         option_type = OptionType.coerce(option_type)
-        if T <= 0:
+        if T <= _MIN_TIME:
+            # At expiry the option is worth its (undiscounted) intrinsic value.
             S_arr, K_arr = float(S), float(K)
             if option_type is OptionType.CALL:
                 return max(S_arr - K_arr, 0.0)
             return max(K_arr - S_arr, 0.0)
+        if sigma <= _MIN_VOL:
+            # With zero volatility the payoff is deterministic: discount the
+            # forward intrinsic value. Avoids the 0/0 in d1 when r=q=0 ATM.
+            fwd = float(S) * np.exp(-q * T)
+            strike_pv = float(K) * np.exp(-r * T)
+            if option_type is OptionType.CALL:
+                return max(fwd - strike_pv, 0.0)
+            return max(strike_pv - fwd, 0.0)
 
         d1, d2 = self.d1_d2(S, K, T, r, sigma, q)
         disc_q = np.exp(-q * T)
@@ -137,7 +152,16 @@ class BlackScholesMerton(OptionPricer):
         Returns
         -------
         float
-            Implied volatility, or ``nan`` if no root exists in the bracket.
+            Implied volatility, or ``nan`` if the solver fails to bracket a
+            root within ``[1e-6, 5.0]`` for an otherwise arbitrage-free price.
+
+        Raises
+        ------
+        ValueError
+            If ``market_price`` violates the no-arbitrage bounds — i.e. it is
+            below the discounted intrinsic value or above the maximum
+            attainable option value (``S·e^{-qT}`` for a call, ``K·e^{-rT}``
+            for a put). Inverting such a price is impossible.
 
         Examples
         --------
@@ -147,6 +171,24 @@ class BlackScholesMerton(OptionPricer):
         0.2
         """
         option_type = OptionType.coerce(option_type)
+        disc_q = np.exp(-q * T)
+        disc_r = np.exp(-r * T)
+        if option_type is OptionType.CALL:
+            lower_bound = max(S * disc_q - K * disc_r, 0.0)
+            upper_bound = S * disc_q
+        else:
+            lower_bound = max(K * disc_r - S * disc_q, 0.0)
+            upper_bound = K * disc_r
+        if market_price < lower_bound - _ARB_TOLERANCE:
+            raise ValueError(
+                f"market_price {market_price:.6g} is below the no-arbitrage "
+                f"lower bound {lower_bound:.6g}; no implied vol exists."
+            )
+        if market_price > upper_bound + _ARB_TOLERANCE:
+            raise ValueError(
+                f"market_price {market_price:.6g} exceeds the no-arbitrage "
+                f"upper bound {upper_bound:.6g}; no implied vol exists."
+            )
 
         def objective(sigma: float) -> float:
             return self.price(S, K, T, r, sigma, option_type, q) - market_price
