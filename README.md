@@ -1,5 +1,7 @@
 # 📈 Options Pricing Engine
 
+[![CI](https://github.com/rxj0102/options-pricing-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/rxj0102/options-pricing-engine/actions/workflows/ci.yml)
+
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Streamlit](https://img.shields.io/badge/Streamlit-app-ff4b4b.svg)](https://streamlit.io)
