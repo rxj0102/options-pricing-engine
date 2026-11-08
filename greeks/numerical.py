@@ -9,6 +9,9 @@ from pricing.base import DAYS_PER_YEAR, OptionPricer, OptionType
 
 # Bump sizes for finite differences.
 REL_SPOT_BUMP: float = 0.01
+# Gamma uses a wider bump: a lattice price has ripple in S, and a 1% second
+# difference amplifies it (gamma came out ~40% too high at 800 steps).
+GAMMA_SPOT_BUMP: float = 0.05
 VOL_BUMP: float = 0.001
 TIME_BUMP: float = 1.0 / DAYS_PER_YEAR
 RATE_BUMP: float = 0.0001
@@ -83,7 +86,7 @@ class NumericalGreeks:
             Estimated gamma.
         """
         option_type = OptionType.coerce(option_type)
-        dS = REL_SPOT_BUMP * S
+        dS = GAMMA_SPOT_BUMP * S
         up = self._price(S + dS, K, T, r, sigma, option_type, q)
         mid = self._price(S, K, T, r, sigma, option_type, q)
         dn = self._price(S - dS, K, T, r, sigma, option_type, q)
