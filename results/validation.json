@@ -1,0 +1,15 @@
+{
+  "bsm_call": 10.450583572185565,
+  "bsm_put": 5.573526022256971,
+  "parity_error": 0.0,
+  "black76_from_spot": 10.450583572185579,
+  "implied_vol_roundtrip": 0.1999999999945307,
+  "crr_1000": 10.448584103764572,
+  "trinomial_1000": 10.449946827181261,
+  "american_put_crr_2000": 6.089989952552339,
+  "early_exercise_premium": 0.5164639302953686,
+  "greek_max_abs_diff": 8.595627271745787e-05,
+  "binomial_order": 0.9792920373435143,
+  "trinomial_order": 0.9886462595531439,
+  "runtime_seconds": 0.0
+}
