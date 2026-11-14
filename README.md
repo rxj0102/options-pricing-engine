@@ -7,7 +7,7 @@
 [![Streamlit](https://img.shields.io/badge/Streamlit-app-ff4b4b.svg)](https://streamlit.io)
 [![Tests](https://img.shields.io/badge/tests-pytest-success.svg)](tests/)
 
-A multi-model options pricing engine supporting **Black-Scholes**, **Black-76**, **Binomial (CRR)**, and **Trinomial (Boyle)** models with a full **Greek engine**, **volatility smile construction**, **scenario analysis**, and **model validation** — packaged as both a Streamlit web app and a Python library.
+A multi-model options pricing engine supporting **Black-Scholes**, **Black-76**, **Binomial (CRR)**, and **Trinomial (Boyle)** models with a full **Greek engine**, **volatility smile construction**, **scenario analysis**, and **model validation**: packaged as both a Streamlit web app and a Python library.
 
 What makes it institutional-grade: a single abstract pricing interface shared by every model, closed-form *and* finite-difference Greeks that agree to `1e-4`, NumPy-style docstrings with runnable examples on every public function, a put-call-parity / cross-model / convergence validation suite, and historically-motivated stress scenarios with Greek-based P&L attribution.
 
@@ -85,7 +85,7 @@ u = e^(σ·√Δt),   d = 1/u,   p = (e^((r-q)Δt) - d) / (u - d)
 
 ## 📦 Module API Reference
 
-### `pricing` — the four models behind a shared interface
+### `pricing`: the four models behind a shared interface
 
 ```python
 from pricing import BlackScholesMerton, Black76, CRRBinomial, BoyleTrinomial
@@ -97,7 +97,7 @@ CRRBinomial(300).price(100, 100, 1.0, 0.05, 0.2, "put",
                        exercise_style="american")                     # early-exercise premium
 ```
 
-### `greeks` — analytical, numerical & unified engine
+### `greeks`: analytical, numerical & unified engine
 
 ```python
 from greeks import BSMGreeks, NumericalGreeks, GreekEngine
@@ -109,7 +109,7 @@ GreekEngine().pnl_explain(OptionContract(S=100, K=100, T=1, r=0.05, sigma=0.2),
                           dS=1.0, dsigma=0.01, dT=1/365, dr=0.0)       # P&L attribution
 ```
 
-### `volatility` — smile, SVI, SABR, term structure
+### `volatility`: smile, SVI, SABR, term structure
 
 ```python
 from volatility import VolatilitySmile, SABRModel, VolTermStructure
@@ -120,7 +120,7 @@ smile.svi_fit()                  # raw SVI parameters
 SABRModel().calibrate(strikes, ivols, F=105, T=1.0)   # Hagan-2002 calibration
 ```
 
-### `validation` — parity, cross-model, convergence
+### `validation`: parity, cross-model, convergence
 
 ```python
 from validation import PutCallParityCheck, ModelComparison, ConvergenceAnalyzer
@@ -130,7 +130,7 @@ ModelComparison().comparison_table(contract)                  # all 4 models vs 
 ConvergenceAnalyzer().analyze(contract)                       # empirical convergence order
 ```
 
-### `scenarios` — stress testing & P&L attribution
+### `scenarios`: stress testing & P&L attribution
 
 ```python
 from scenarios import StressTester, GreekPnLAttribution
@@ -238,7 +238,7 @@ Citation metadata is in `CITATION.cff`. GitHub turns it into a Cite this reposit
 
 ## 📜 License
 
-MIT — see [LICENSE](LICENSE).
+MIT: see [LICENSE](LICENSE).
 
 ## 🔗 GitHub
 
